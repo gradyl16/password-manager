@@ -1,210 +1,180 @@
-// package main
-
-// import (
-// 	"bufio"
-// 	"fmt"
-// 	"os"
-// 	"strings"
-// )
-
-// type Entry struct {
-// 	User     string
-// 	Password string
-// }
-
-// type PasswordManager map[string][]Entry
-
-// func (pm PasswordManager) pmRead() {
-// 	// Read data from the "passwordVault" file and populate the passwordMap.
-// 	file, err := os.Open("passwordVault")
-// 	if err != nil {
-// 		fmt.Println("Error reading passwordVault:", err)
-// 		return
-// 	}
-// 	defer file.Close()
-
-// 	scanner := bufio.NewScanner(file)
-// 	for scanner.Scan() {
-// 		line := scanner.Text()
-// 		fields := strings.Fields(line)
-// 		if len(fields) < 3 {
-// 			continue
-// 		}
-// 		site, user, password := fields[0], fields[1], fields[2]
-// 		entry := Entry{User: user, Password: password}
-// 		pm[site] = append(pm[site], entry)
-// 	}
-// }
-
-// func (pm PasswordManager) pmWrite() {
-// 	// Write the current state of the passwordMap back to the "passwordVault" file.
-// 	file, err := os.Create("passwordVault")
-// 	if err != nil {
-// 		fmt.Println("Error writing passwordVault:", err)
-// 		return
-// 	}
-// 	defer file.Close()
-
-// 	for site, entries := range pm {
-// 		for _, entry := range entries {
-// 			fmt.Fprintf(file, "%s %s %s\n", site, entry.User, entry.Password)
-// 		}
-// 	}
-// }
-
-// func main() {
-// 	pm := make(PasswordManager)
-// 	pm.pmRead()
-// 	defer pm.pmWrite()
-
-// 	// Implement your command loop (l, a, r, x) and associated actions here.
-
-// 	// Example: List all entries
-// 	for site, entries := range pm {
-// 		fmt.Println(site)
-// 		for _, entry := range entries {
-// 			fmt.Printf("  User: %s, Password: %s\n", entry.User, entry.Password)
-// 		}
-// 	}
-// }
+/*
+	Author: 	 Dylen Greenenwald
+	UIN:		 658146889
+	Date:        2023-11-11
+	Description: A simple password manager that relies heavily on maps and
+				 slices. A user of this manager can load it with a properly
+				 formatted file (in this case, hard coded to be passwordVault).
+				 The user can then list the contents of the password manager,
+				 add an entry, remove an entry, or terminate the process.
+*/
 
 package main
 
 import (
+	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 )
 
-// Global variables are allowed (and encouraged) for this project.
-type EntrySlice struct {
-	User     string
-	Password string
+// Entry represents an entry in the password manager.
+type Entry struct {
+	User     string  // The user who is seeking to store credentials for site.
+	Password string  // The password for the user at the site.
 }
 
-type EntrySlices []EntrySlice
+type EntrySlice []Entry
 
-type PasswordManager map[string]EntrySlices
+// The data structure that represents the password manager.
+var passwordMap map[string]EntrySlice
 
-var passwordMap PasswordManager
-
-
-// Create an Iter method to iterate over EntrySlices
-func (entries EntrySlices) Iter() <-chan EntrySlice {
-	ch := make(chan EntrySlice)
-	go func() {
-		defer close(ch)
-		for _, entry := range entries {
-			ch <- entry
-		}
-	}()
-	return ch
-}
-
-// _______________________________________________________________________
-
-// _______________________________________________________________________
 // initialize before main()
-// _______________________________________________________________________
 func init() {
-	// Initialize the passwordMap by reading data from a file like "passwordVault"
-	// if err := pmRead("passwordVault"); err != nil {
-	//     fmt.Printf("Error initializing password manager: %v\n", err)
-	//     os.Exit(1)
-	// }
+	passwordMap = make(map[string]EntrySlice)
 }
 
-// _______________________________________________________________________
-// find the matching entry slice
-// _______________________________________________________________________
+// findEntrySlice finds the entry slice for a given site.
 func findEntrySlice(site string) (EntrySlice, bool) {
-	return EntrySlice{}, false
+	// Accessing a map in Go returns an entry if it is found, and a zero
+	// value if it is not found. Additionally, it will return a flag
+	// indicating whether or not the entry was found.
+	entrySlice, found := passwordMap[site]
+	return entrySlice, found
 }
 
-// _______________________________________________________________________
-// set the entrySlice for site
-// _______________________________________________________________________
+// setEntrySlice sets the entry slice for a site.
 func setEntrySlice(site string, entrySlice EntrySlice) {
+	passwordMap[site] = entrySlice
 }
 
-// _______________________________________________________________________
-// find
-// _______________________________________________________________________
+// find finds a user within an entry slice.
 func find(user string, entrySlice EntrySlice) (int, bool) {
+	// For each entry in the entry slice, check if the user matches the
+	// user we are looking for. If it does, return the index of the entry
+	// and a flag indicating that the user was found.
+	for i, entry := range entrySlice {
+		if entry.User == user {
+			return i, true
+		}
+	}
+
+	// If control reaches here, the user was not found.
 	return -1, false
 }
 
-// _______________________________________________________________________
-// print the list in columns
-// _______________________________________________________________________
+// pmList lists the contents of the password manager in a tabular format.
 func pmList() {
-	// Define the fixed column widths
-	siteWidth := 20
-	userWidth := 20
-	passwordWidth := 20
-
-	// Print a header for the table
-	fmt.Printf("%-*s %-*s %-*s\n", siteWidth, "Site", userWidth, "User", passwordWidth, "Password")
-	fmt.Println(strings.Repeat("-", siteWidth+userWidth+passwordWidth))
-
-	// Iterate through the passwordMap and print each site, and all slices associated
-	// with that site
-	for site, entries := range passwordMap {
-		fmt.Printf("%-*s ", siteWidth, site)
-		for entry := range entries.Iter() {
-			fmt.Printf("%-*s %-*s\n", userWidth, entry.User, passwordWidth, entry.Password)
+	fmt.Println("Site\tUser\tPassword")
+	for site, entrySlice := range passwordMap {
+		for _, entry := range entrySlice {
+			fmt.Printf("%s\t%s\t%s\n", site, entry.User, entry.Password)
 		}
 	}
 }
 
-// _______________________________________________________________________
-//
-//	add an entry if the site, user is not already found
-//
-// _______________________________________________________________________
+// pmAdd adds an entry for a site and user, ensuring there are no duplicate
+// entries.
 func pmAdd(site, user, password string) {
+	// Populate entrySlice with existing entries for the site if it exists;
+	// update a corresponding boolean.
+	entrySlice, found := findEntrySlice(site)
+
+	// If there is not an entry with this site, create a new entrySlice to
+	// hold this entry and future entries with this site.
+	if !found {
+		entrySlice = make(EntrySlice, 0)
+	}
+
+	// Ignore the index of where, but check if the user was found. If so, 
+	// prevent adding a duplicate entry.
+	_, userFound := find(user, entrySlice)
+	if userFound {
+		fmt.Println("add: duplicate entry")
+		return
+	}
+
+	// Since the entry doesn't exist, we can create it and append it to the
+	// entrySlice.
+	entry := Entry{
+		Site:     site,
+		User:     user,
+		Password: password,
+	}
+	entrySlice = append(entrySlice, entry)
+	setEntrySlice(site, entrySlice)
 }
 
-// _______________________________________________________________________
-// remove by site and user
-// _______________________________________________________________________
+// pmRemove removes an entry for a specific site and user.
 func pmRemove(site, user string) {
+	// Check if there is an entry for the site
+	entrySlice, found := findEntrySlice(site)
+	if !found {
+		fmt.Println("remove: user/site not found")
+		return
+	}
+
+	// Check if there is a user inside of the existing slice
+	index, userFound := find(user, entrySlice)
+	if !userFound {
+		fmt.Println("remove: user not found")
+		return
+	}
+
+	// Remove the entry from the slice and update the entry slice for the
+	// site.
+	entrySlice = append(entrySlice[:index], entrySlice[index+1:]...)
+	setEntrySlice(site, entrySlice)
 }
 
-// _______________________________________________________________________
-// remove the whole site if there is a single user at that site
-// _______________________________________________________________________
+// pmRemoveSite removes the entire site if there is only a single user at
+// that site.
 func pmRemoveSite(site string) {
+	entrySlice, found := findEntrySlice(site)
+	
+	// If there are no entries for this site, there is nothing to remove.
+	if !found {
+		fmt.Println("remove: site not found")
+		return
+	}
 
+	// If there is a single entry for this site, remove the site. Else,
+	// print an error.
+	if len(entrySlice) == 1 {
+		delete(passwordMap, site)
+	} else {
+		fmt.Println("remove: attempted to remove multiple errors")
+	}
 }
 
-// _______________________________________________________________________
-// read the passwordVault
-// _______________________________________________________________________
+// pmRead reads the passwordVault file to initialize the password manager.
 func pmRead() {
+	// Define streams for reading the passwordVault file.
 	file, err := os.Open("passwordVault")
+
+	// If we encounter an error, stop reading the file.
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("Error reading passwordVault:", err)
+		return
 	}
-
-	for {
-		var site, user, password string
-		_, err := fmt.Fscanf(file, "%s %s %s\n", &site, &user, &password)
-		if err != nil {
-			break
-		}
-		fmt.Println(site, user, password)
-	}
-
+	// Queue up closing the file for when we are done reading it.
 	defer file.Close()
+
+	// Read the file line by line, splitting each line into its parts.
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.Split(line, " ")
+
+		// If the line is improperly formatted, just skip it.
+		if len(parts) == 3 {
+			pmAdd(parts[0], parts[1], parts[2])
+		}
+	}
 }
 
-// _______________________________________________________________________
-// write the passwordVault
-// _______________________________________________________________________
-func (pm PasswordManager) pmWrite() {
-	// Write the current state of the passwordMap back to the "passwordVault" file.
+// pmWrite writes the passwordVault file.
+func pmWrite() {
 	file, err := os.Create("passwordVault")
 	if err != nil {
 		fmt.Println("Error writing passwordVault:", err)
@@ -212,35 +182,53 @@ func (pm PasswordManager) pmWrite() {
 	}
 	defer file.Close()
 
-	for site, entries := range pm {
-		for _, entry := range entries {
-			fmt.Fprintf(file, "%s %s %s\n", site, entry.User, entry.Password)
+	for site, entrySlice := range passwordMap {
+		for _, entry := range entrySlice {
+			_, err := file.WriteString(fmt.Sprintf("%s %s %s\n", site, entry.User, entry.Password))
+			if err != nil {
+				fmt.Println("Error writing to passwordVault:", err)
+				return
+			}
 		}
 	}
 }
 
-// _______________________________________________________________________
-// do forever loop reading the following commands
-//
-//	  l
-//	  a s u p
-//	  r s
-//	  r s u
-//	  x
-//	where l,a,r,x are list, add, remove, and exit
-//	and s,u,p are site, user, and password
-//
-// _______________________________________________________________________
+// loop reads commands and processes them.
 func loop() {
+	scanner := bufio.NewScanner(os.Stdin)
+	for {
+		fmt.Print("Enter a command (l/a/r/x): ")
+		scanner.Scan()
+		command := scanner.Text()
+		switch command {
+		case "l":
+			pmList()
+		case "a":
+			fmt.Print("Enter site, user, password (separated by spaces): ")
+			scanner.Scan()
+			input := scanner.Text()
+			parts := strings.Split(input, " ")
+			if len(parts) == 3 {
+				pmAdd(parts[0], parts[1], parts[2])
+			}
+		case "r":
+			fmt.Print("Enter site and user to remove (separated by a space): ")
+			scanner.Scan()
+			input := scanner.Text()
+			parts := strings.Split(input, " ")
+			if len(parts) == 2 {
+				pmRemove(parts[0], parts[1])
+			}
+		case "x":
+			pmWrite()
+			os.Exit(0)
+		default:
+			fmt.Println("Invalid command. Please enter l/a/r/x.")
+		}
+	}
 }
 
-// _______________________________________________________________________
-//
-//	let her rip
-//
-// _______________________________________________________________________
 func main() {
 	pmRead()
-	pmList()
-	os.Exit(0)
+	loop()
 }
