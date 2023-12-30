@@ -97,7 +97,6 @@ func pmAdd(site, user, password string) {
 	// Since the entry doesn't exist, we can create it and append it to the
 	// entrySlice.
 	entry := Entry{
-		Site:     site,
 		User:     user,
 		Password: password,
 	}
