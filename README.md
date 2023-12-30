@@ -50,7 +50,7 @@ This project was developed as part of the curriculum for Programming Language De
 <!-- GETTING STARTED -->
 ## Getting Started
 
-To get a local copy up and running follow these simple example steps.
+To get a local copy up and running follow these steps.
 
 ### Prerequisites
 
